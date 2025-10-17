@@ -13,3 +13,8 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .DS_Store
+.history/
+
+keys.env
+
+package.json
