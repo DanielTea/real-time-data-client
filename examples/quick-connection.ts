@@ -16,52 +16,38 @@ const onMessage = (_: RealTimeDataClient, message: Message): void => {
 };
 
 const onConnect = (client: RealTimeDataClient): void => {
-    // Subscribe to a topic
+    // Subscribe to finance-related topics only
     client.subscribe({
         subscriptions: [
-            // comments
-            {
-                topic: "comments",
-                type: "*", // "*"" can be used to connect to all the types of the topic
-                //filters: `{"parentEntityID":20200,"parentEntityType":"Event"}`,
-            },
-
-            // activity
+            // Finance-related activity (trades, orders) - filter for finance events
             {
                 topic: "activity",
                 type: "*",
-                //filters: `{"event_slug":"slug"}`, // filters: `{"market_slug":"slug"}
+                filters: `{"event_slug":"fed-rate-cut"}`,
             },
 
-            // rfq
-            {
-                topic: "rfq",
-                type: "*",
-                //filters: `{"event_slug":"slug"}`, // filters: `{"market_slug":"slug"}
-            },
-
-            // crypto_prices
+            // Crypto prices for financial markets
             {
                 topic: "crypto_prices",
                 type: "*",
-                filters: "", // filters: `{"symbol":"btCUSDt"}`,
+                filters: `{"symbol":"btcusdt"}`,
             },
 
-            // crypto_prices_chainlink
+            // Chainlink crypto prices
             {
                 topic: "crypto_prices_chainlink",
                 type: "*",
-                filters: "", // filters: `{"symbol":"eth/usd"}`,
+                filters: `{"symbol":"btc/usd"}`,
             },
 
-            // clob_market
+            // CLOB market data for finance markets
             {
                 topic: "clob_market",
                 type: "*",
                 filters: `["71321045679252212594626385532706912750332728571942532289631379312455583992563"]`,
             },
 
-            // clob_user
+            // CLOB user data for authenticated finance trading
             {
                 topic: "clob_user",
                 type: "*",

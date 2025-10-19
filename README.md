@@ -1,396 +1,298 @@
-# Real time data client
+# Polymarket Real-Time Data Client
 
-This client provides a wrapper to connect to the `real-time-data-streaming` `WebSocket` service.
+A real-time WebSocket client for monitoring Polymarket probability changes with a React frontend dashboard.
 
-## How to use it
+## Features
 
-Here is a quick example about how to connect to the service and start receiving messages (you can find more in the folder `examples/`):
+- **Real-time probability monitoring**: Track all probability changes across Polymarket markets
+- **Delta visualization**: See probability changes with color-coded indicators (green/red)
+- **Category filtering**: Filter markets by Polymarket categories (Politics, Sports, Crypto, Finance, Tech, etc.)
+- **Keyword search**: Search markets by title or outcome
+- **Automatic market cleanup**: Closed markets are automatically removed from the UI
+- **Modern UI**: Clean, responsive React interface with Tailwind CSS
+- **WebSocket streaming**: Live updates without page refresh
+- **Local caching**: IndexedDB-based market data cache - no need to re-stream markets on reload
+- **Clickable markets**: Click any card to open the market on Polymarket in a new tab
+- **Market persistence**: Cached markets are restored on app restart
 
-```typescript
-import { RealTimeDataClient } from "../src/client";
-import { Message } from "../src/model";
+## Architecture
 
-const onMessage = (message: Message): void => {
-    console.log(message.topic, message.type, message.payload);
-};
-
-const onConnect = (client: RealTimeDataClient): void => {
-    // Subscribe to a topic
-    client.subscribe({
-        subscriptions: [
-            {
-                topic: "comments",
-                type: "*", // "*"" can be used to connect to all the types of the topic
-                filters: `{"parentEntityID":100,"parentEntityType":"Event"}`, // empty means no filter
-            },
-        ],
-    });
-};
-
-new RealTimeDataClient({ onMessage, onConnect }).connect();
+```
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
+│   Polymarket    │───▶│  TypeScript      │───▶│   WebSocket     │
+│   WebSocket     │    │  Client          │    │   Server       │
+└─────────────────┘    └──────────────────┘    └─────────────────┘
+                                                          │
+                                                          ▼
+                                                ┌─────────────────┐
+                                                │   React         │
+                                                │   Frontend      │
+                                                └─────────────────┘
 ```
 
-## How to subscribe and unsubscribe from messages
+## Setup
 
-Once the connection is stablished and you have a `client: RealTimeDataClient` object, you can `subscribe` and `unsubscribe` to many messages streamings using the same connection.
+### Prerequisites
 
-### Subscribe
+- Node.js 18+
+- pnpm
+- Polymarket API credentials
 
-Subscribe to 'trades' messages from the topic 'activity' and to the all comments messages.
+### 1. Install Dependencies
 
-```typescript
-client.subscribe({
-    subscriptions: [
-        {
-            topic: "activity",
-            type: "trades",
-        },
-    ],
-});
+```bash
+# Install main project dependencies
+pnpm install
 
-client.subscribe({
-    subscriptions: [
-        {
-            topic: "comments",
-            type: "*", // "*"" can be used to connect to all the types of the topic
-        },
-    ],
-});
+# Install frontend dependencies
+cd frontend
+pnpm install
+cd ..
 ```
 
-### Unsubscribe
+### 2. Generate API Credentials
 
-Unsubscribe from the new trades messages of the topic 'activity'. If 'activity' has more messages types and I used '\*' to connect to all of them, this will only unsubscribe from the type 'trades'.
+```bash
+# Create Python environment
+uvx venv .venv
+source .venv/bin/activate
 
-```typescript
-client.subscribe({
-    subscriptions: [
-        {
-            topic: "activity",
-            type: "trades",
-        },
-    ],
-});
+# Install Python dependencies
+pip install py-clob-client python-dotenv
+
+# Generate API credentials
+python generate_api_key.py
 ```
 
-### Disconnect
+### 3. Configure Environment
 
-The `client` object provides a method to disconnect from the `WebSocket` server:
+Create `keys.env` with your credentials:
 
-```typescript
-client.disconnect();
+```env
+PRIVATE_KEY=0x73a8432219de966cbdac784d7d026e6ce2bb47239dedd9e64381c1ff24379957
+CLOB_API_KEY=001307ad-e84d-041c-015c-8362334df839
+CLOB_SECRET=Z1eExXDOPOamA58iqMU0ekWQ3QcPk4_1Oy5uvJXadzU=
+CLOB_PASSPHRASE=0c17d5684523c36e96555e74cebc6756928972671b5b22ced2dbd674b0dde001
 ```
 
-## Messages hierarchy
+## Usage
 
-| Topic                     | Type               | Auth     | Filters (if it is empty the messages won't be filtered)         | Schema                              | Subscription Handler                                        |
-| ------------------------- | ------------------ | -------- | --------------------------------------------------------------- | ----------------------------------- | ----------------------------------------------------------- |
-| `activity`                | `trades`           | -        | `{"event_slug":"string"}' OR '{"market_slug":"string"}`         | [`Trade`](#trade)                   |                                                             |
-| `activity`                | `orders_matched`   | -        | `{"event_slug":"string"}' OR '{"market_slug":"string"}`         | [`Trade`](#trade)                   |                                                             |
-| `comments`                | `comment_created`  | -        | `{"parentEntityID":number,"parentEntityType":"Event / Series"}` | [`Comment`](#comment)               |                                                             |
-| `comments`                | `comment_removed`  | -        | `{"parentEntityID":number,"parentEntityType":"Event / Series"}` | [`Comment`](#comment)               |                                                             |
-| `comments`                | `reaction_created` | -        | `{"parentEntityID":number,"parentEntityType":"Event / Series"}` | [`Reaction`](#reaction)             |                                                             |
-| `comments`                | `reaction_removed` | -        | `{"parentEntityID":number,"parentEntityType":"Event / Series"}` | [`Reaction`](#reaction)             |                                                             |
-| `rfq`                     | `request_created`  | -        | -                                                               | [`Request`](#request)               |                                                             |
-| `rfq`                     | `request_edited`   | -        | -                                                               | [`Request`](#request)               |                                                             |
-| `rfq`                     | `request_canceled` | -        | -                                                               | [`Request`](#request)               |                                                             |
-| `rfq`                     | `request_expired`  | -        | -                                                               | [`Request`](#request)               |                                                             |
-| `rfq`                     | `quote_created`    | -        | -                                                               | [`Quote`](#quote)                   |                                                             |
-| `rfq`                     | `quote_edited`     | -        | -                                                               | [`Quote`](#quote)                   |                                                             |
-| `rfq`                     | `quote_canceled`   | -        | -                                                               | [`Quote`](#quote)                   |                                                             |
-| `rfq`                     | `quote_expired`    | -        | -                                                               | [`Quote`](#quote)                   |                                                             |
-| `crypto_prices`           | `update`           | -        | `{"symbol":string}`                                             | [`CryptoPrice`](#cryptoprice)       | [`CryptoPriceHistorical`](#initial-data-dump-on-connection) |
-| `crypto_prices_chainlink` | `update`           | -        | `{"symbol":string}`                                             | [`CryptoPrice`](#cryptoprice)       | [`CryptoPriceHistorical`](#initial-data-dump-on-connection) |
-| `clob_user`               | `order`            | ClobAuth | -                                                               | [`Order`](#order)                   |                                                             |
-| `clob_user`               | `trade`            | ClobAuth | -                                                               | [`Trade`](#trade-1)                 |                                                             |
-| `clob_market`             | `price_change`     | -        | `["100","200",...]` (filters are mandatory on this one)         | [`PriceChanges`](#pricechanges)     |                                                             |
-| `clob_market`             | `agg_orderbook`    | -        | `["100","200",...]`                                             | [`AggOrderbook`](#aggorderbook)     | [`AggOrderbook`](#aggorderbook)                             |
-| `clob_market`             | `last_trade_price` | -        | `["100","200",...]`                                             | [`LastTradePrice`](#lasttradeprice) |                                                             |
-| `clob_market`             | `tick_size_change` | -        | `["100","200",...]`                                             | [`TickSizeChange`](#ticksizechange) |                                                             |
-| `clob_market`             | `market_created`   | -        | -                                                               | [`ClobMarket`](#clobmarket)         |                                                             |
-| `clob_market`             | `market_resolved`  | -        | -                                                               | [`ClobMarket`](#clobmarket)         |                                                             |
+### Start the WebSocket Server
 
-## Auth
+```bash
+# Start the bridge server
+node websocket-server.js
+```
 
-### ClobAuth
+### Start the Frontend
+
+```bash
+# In a new terminal
+cd frontend
+pnpm dev
+```
+
+### Access the Dashboard
+
+Open http://localhost:5173 in your browser to see the real-time dashboard.
+
+### Viewing Logs
+
+All server logs are saved to `polymarket-logs.txt`. Use the helper script to view them:
+
+```bash
+# Show last 50 lines
+./view-logs.sh tail
+
+# Follow logs in real-time
+./view-logs.sh follow
+
+# Search for specific markets
+./view-logs.sh grep "Bitcoin"
+
+# Show only deleted markets
+./view-logs.sh deleted
+
+# Show last 10 market check cycles
+./view-logs.sh check
+
+# Clear logs
+./view-logs.sh clear
+```
+
+Or view directly:
+
+```bash
+# View entire log file
+cat polymarket-logs.txt
+
+# Follow logs in real-time
+tail -f polymarket-logs.txt
+
+# Search logs
+grep "Deleted market" polymarket-logs.txt
+```
+
+## Project Structure
+
+```
+real-time-data-client/
+├── src/                    # TypeScript client source
+│   ├── client.ts          # WebSocket client
+│   ├── model.ts           # Type definitions
+│   └── index.ts           # Main entry point
+├── examples/               # Example scripts
+│   ├── quick-connection.ts
+│   └── all-markets-probability-changes.ts
+├── frontend/              # React frontend
+│   ├── src/
+│   │   ├── components/    # React components
+│   │   ├── hooks/         # Custom hooks
+│   │   ├── db/            # IndexedDB caching
+│   │   └── types.ts       # TypeScript types
+│   └── package.json
+├── websocket-server.js     # Bridge server
+├── view-logs.sh           # Log viewer helper script
+├── polymarket-logs.txt    # Server logs (auto-generated)
+├── generate_api_key.py     # API credential generator
+├── keys.env               # Environment variables
+└── package.json
+```
+
+## API Reference
+
+### WebSocket Messages
+
+The client receives real-time messages with the following structure:
 
 ```typescript
-/**
- * API key credentials for CLOB authentication.
- */
-export interface ClobApiKeyCreds {
-    /** API key used for authentication */
-    key: string;
-
-    /** API secret associated with the key */
-    secret: string;
-
-    /** Passphrase required for authentication */
-    passphrase: string;
+interface WebSocketMessage {
+    topic: string;
+    type: string;
+    timestamp: number;
+    connection_id: string;
+    payload: any;
 }
 ```
 
+### Market Data
+
 ```typescript
-client.subscribe({
-    subscriptions: [
-        {
-            topic: "clob_user",
-            type: "*",
-            clob_auth: {
-                key: "xxxxxx-xxxx-xxxxx-xxxx-xxxxxx",
-                secret: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
-                passphrase: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
-            },
-        },
-    ],
-});
+interface MarketData {
+    title: string;
+    outcome: string;
+    probability: number;
+    delta?: number;
+    side: "BUY" | "SELL";
+    size: number;
+    timestamp: number;
+    icon?: string;
+    marketUrl?: string;
+    category?: string;
+}
 ```
 
-## Message types
+## Configuration
 
-### Activity
+### Category Filtering
 
-#### Trade
+The dashboard supports filtering by the following Polymarket categories:
 
-| Name              | Type    | Description                                        |
-| ----------------- | ------- | -------------------------------------------------- |
-| `asset`           | string  | ERC1155 token ID of conditional token being traded |
-| `bio`             | string  | Bio of the user of the trade                       |
-| `conditionId`     | string  | Id of market which is also the CTF condition ID    |
-| `eventSlug`       | string  | Slug of the event                                  |
-| `icon`            | string  | URL to the market icon image                       |
-| `name`            | string  | Name of the user of the trade                      |
-| `outcome`         | string  | Human readable outcome of the market               |
-| `outcomeIndex`    | integer | Index of the outcome                               |
-| `price`           | float   | Price of the trade                                 |
-| `profileImage`    | string  | URL to the user profile image                      |
-| `proxyWallet`     | string  | Address of the user proxy wallet                   |
-| `pseudonym`       | string  | Pseudonym of the user                              |
-| `side`            | string  | Side of the trade (`BUY`/`SELL`)                   |
-| `size`            | integer | Size of the trade                                  |
-| `slug`            | string  | Slug of the market                                 |
-| `timestamp`       | integer | Timestamp of the trade                             |
-| `title`           | string  | Title of the event                                 |
-| `transactionHash` | string  | Hash of the transaction                            |
+- **All** - Show all markets
+- **Trending** - Popular/trending markets
+- **Breaking** - Breaking news markets
+- **New** - Newly listed markets
+- **Politics** - Political events and elections
+- **Sports** - Sports events and outcomes
+- **Finance** - Financial markets and indicators
+- **Crypto** - Cryptocurrency markets
+- **Geopolitics** - International relations and conflicts
+- **Earnings** - Corporate earnings predictions
+- **Tech** - Technology and innovation markets
+- **Culture** - Entertainment and cultural events
+- **World** - Global events
+- **Economy** - Economic indicators and policies
+- **Elections** - Election predictions
+- **Mentions** - Mention-based markets
 
-### Comments
+Categories are extracted from market data when available, with a fallback to keyword matching on market titles.
 
-#### Comment
+### Filtering Options
 
-| Name               | Type   | Description                                 |
-| ------------------ | ------ | ------------------------------------------- |
-| `id`               | string | Unique identifier of comment                |
-| `body`             | string | Content of the comment                      |
-| `parentEntityType` | string | Type of the parent entity (Event or Series) |
-| `parentEntityID`   | number | ID of the parent entity                     |
-| `parentCommentID`  | string | ID of the parent comment                    |
-| `userAddress`      | string | Address of the user                         |
-| `replyAddress`     | string | Address of the reply user                   |
-| `createdAt`        | string | Creation timestamp                          |
-| `updatedAt`        | string | Last update timestamp                       |
+- **Category filtering**: Filter by Polymarket market categories
+- **Delta threshold**: Show all probability changes (no minimum threshold)
+- **Market types**: All markets (no filtering)
+- **Update frequency**: Real-time WebSocket updates
 
-#### Reaction
+### Customization
 
-| Name           | Type   | Description                    |
-| -------------- | ------ | ------------------------------ |
-| `id`           | string | Unique identifier of reaction  |
-| `commentID`    | number | ID of the comment              |
-| `reactionType` | string | Type of the reaction           |
-| `icon`         | string | Icon representing the reaction |
-| `userAddress`  | string | Address of the user            |
-| `createdAt`    | string | Creation timestamp             |
+Modify `examples/all-markets-probability-changes.ts` to:
 
-### RFQ
+- Change the delta threshold
+- Filter specific markets
+- Adjust logging format
+- Add custom processing logic
 
-#### Request
+## Troubleshooting
 
-| Name           | Type   | Description                                                     |
-| -------------- | ------ | --------------------------------------------------------------- |
-| `requestId`    | string | Unique identifier for the request                               |
-| `proxyAddress` | string | User proxy address                                              |
-| `market`       | string | Id of market which is also the CTF condition ID                 |
-| `token`        | string | `ERC1155` token ID of conditional token being traded            |
-| `complement`   | string | Complement `ERC1155` token ID of conditional token being traded |
-| `state`        | string | Current state of the request                                    |
-| `side`         | string | Indicates buy or sell side                                      |
-| `sizeIn`       | number | Input size of the request                                       |
-| `sizeOut`      | number | Output size of the request                                      |
-| `price`        | number | Price from in/out sizes                                         |
-| `expiry`       | number | Expiry timestamp (UNIX format)                                  |
+### Common Issues
 
-#### Quote
+1. **WebSocket connection failed**
+    - Check if the bridge server is running
+    - Verify port 8080 is available
+    - Check firewall settings
 
-| Name           | Type   | Description                                                     |
-| -------------- | ------ | --------------------------------------------------------------- |
-| `quoteId`      | string | Unique identifier for the quote                                 |
-| `requestId`    | string | Associated request identifier                                   |
-| `proxyAddress` | string | User proxy address                                              |
-| `token`        | string | `ERC1155` token ID of conditional token being traded            |
-| `state`        | string | Current state of the quote                                      |
-| `side`         | string | Indicates buy or sell side                                      |
-| `sizeIn`       | number | Input size of the quote                                         |
-| `sizeOut`      | number | Output size of the quote                                        |
-| `sizeOut`      | number | Output size of the request                                      |
-| `condition`    | string | Id of market which is also the CTF condition ID                 |
-| `complement`   | string | Complement `ERC1155` token ID of conditional token being traded |
-| `expiry`       | number | Expiry timestamp (UNIX format)                                  |
+2. **No market data**
+    - Ensure API credentials are valid
+    - Check Polymarket API status
+    - Verify network connectivity
 
-### CryptoPrice
+3. **Frontend not loading**
+    - Check if `pnpm dev` is running
+    - Verify port 5173 is available
+    - Check browser console for errors
 
-| Name        | Type   | Description                              |
-| ----------- | ------ | ---------------------------------------- |
-| `symbol`    | string | Symbol of the asset                      |
-| `timestamp` | number | Timestamp in milliseconds for the update |
-| `value`     | number | Value at the time of update              |
+### Logs
 
-#### Filters
+- **Client logs**: Check terminal running `node websocket-server.js`
+- **Frontend logs**: Check browser developer console
+- **TypeScript client**: Check terminal output for WebSocket messages
 
-- `{"symbol":"btcusdt"}`
-- `{"symbol":"ethusdt"}`
-- `{"symbol":"xrpusdt"}`
-- `{"symbol":"solusdt"}`
+## Development
 
-#### Initial data dump on connection
+### Adding New Features
 
-When the connection is stablished, if a `filter` is used, the server will dump an initial snapshoot of recent data
+1. **Backend changes**: Modify TypeScript client in `src/`
+2. **Frontend changes**: Update React components in `frontend/src/`
+3. **Bridge updates**: Modify `websocket-server.js` for new message types
 
-| Name   | Type   | Description                                                      |
-| ------ | ------ | ---------------------------------------------------------------- |
-| symbol | string | Symbol of the asset                                              |
-| data   | array  | Array of price data objects, each containing timestamp and value |
+### Testing
 
-### CLOB User
+```bash
+# Test TypeScript client
+pnpm exec ts-node examples/all-markets-probability-changes.ts
 
-#### Order
+# Test frontend
+cd frontend
+pnpm dev
+```
 
-| Name            | Type               | Description                                               |
-| --------------- | ------------------ | --------------------------------------------------------- |
-| `asset_id`      | string             | Order's `ERC1155` token ID of conditional token           |
-| `created_at`    | string (timestamp) | Order's creation UNIX timestamp                           |
-| `expiration`    | string (timestamp) | Order's expiration UNIX timestamp                         |
-| `id`            | string             | Unique order hash identifier                              |
-| `maker_address` | string             | Maker’s address (funder)                                  |
-| `market`        | string             | Condition ID or market identifier                         |
-| `order_type`    | string             | Type of order: `GTC`, `GTD`, `FOK`, `FAK`                 |
-| `original_size` | string             | Original size of the order at placement                   |
-| `outcome`       | string             | Order outcome: `YES` / `NO`                               |
-| `owner`         | string             | UUID of the order owner                                   |
-| `price`         | string             | Order price (e.g., in decimals like `0.5`)                |
-| `side`          | string             | Side of the trade: `BUY` or `SELL`                        |
-| `size_matched`  | string             | Amount of order that has been matched                     |
-| `status`        | string             | Status of the order (e.g., `MATCHED`)                     |
-| `type`          | string             | Type of update: `PLACEMENT`, `CANCELLATION`, `FILL`, etc. |
+## License
 
-#### Trade
+MIT License - see LICENSE file for details.
 
-| Name               | Type               | Description                                                       |
-| ------------------ | ------------------ | ----------------------------------------------------------------- |
-| `asset_id`         | string             | `ERC1155` token ID of the conditional token involved in the trade |
-| `fee_rate_bps`     | string             | Fee rate in basis points (bps)                                    |
-| `id`               | string             | Unique identifier for the match record                            |
-| `last_update`      | string (timestamp) | Last update timestamp (UNIX)                                      |
-| `maker_address`    | string             | Maker’s address                                                   |
-| `maker_orders`     | array              | List of maker orders (see nested schema below)                    |
-| `market`           | string             | Condition ID or market identifier                                 |
-| `match_time`       | string (timestamp) | Match execution timestamp (UNIX)                                  |
-| `outcome`          | string             | Outcome of the market: `YES` / `NO`                               |
-| `owner`            | string             | UUID of the taker (owner of the matched order)                    |
-| `price`            | string             | Matched price (in decimal format, e.g., `0.5`)                    |
-| `side`             | string             | Taker side of the trade: `BUY` or `SELL`                          |
-| `size`             | string             | Total matched size                                                |
-| `status`           | string             | Status of the match: e.g., `MINED`                                |
-| `taker_order_id`   | string             | ID of the taker's order                                           |
-| `transaction_hash` | string             | Transaction hash where the match was settled                      |
+## Contributing
 
-##### `maker_orders`
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests if applicable
+5. Submit a pull request
 
-| Name             | Type   | Description                                                      |
-| ---------------- | ------ | ---------------------------------------------------------------- |
-| `asset_id`       | string | `ERC1155` token ID of the conditional token of the maker's order |
-| `fee_rate_bps`   | string | Maker's fee rate in basis points                                 |
-| `maker_address`  | string | Maker’s address                                                  |
-| `matched_amount` | string | Amount matched from the maker's order                            |
-| `order_id`       | string | ID of the maker's order                                          |
-| `outcome`        | string | Outcome targeted by the maker's order (`YES` / `NO`)             |
-| `owner`          | string | UUID of the maker                                                |
-| `price`          | string | Order price                                                      |
-| `side`           | string | Side of the maker: `BUY` or `SELL`                               |
+## Support
 
-### CLOB market
+For issues and questions:
 
-#### PriceChanges
-
-| Name                | Type               | Description                                               |
-| ------------------- | ------------------ | --------------------------------------------------------- |
-| `m` (market)        | string             | Condition ID                                              |
-| `pc` (price change) | array              | Price changes by book                                     |
-| `t` (timestamp)     | string (timestamp) | Timestamp in milliseconds since epoch (UNIX time \* 1000) |
-
-##### PriceChange
-
-NOTE: Filters are mandatory for this topic/type. Example: `["100","200",...]` (collection of token ids)
-
-| Name            | Type   | Description                                                     |
-| --------------- | ------ | --------------------------------------------------------------- |
-| `a` (asset_id)  | string | Asset identifier                                                |
-| `h` (hash)      | string | Unique hash ID of the book snapshot                             |
-| `p` (price)     | string | Price quoted (e.g., `0.5`)                                      |
-| `s` (side)      | string | Side of the quote: `BUY` or `SELL`                              |
-| `si` (size)     | string | Size or volume available at the quoted price (e.g., `0`, `100`) |
-| `ba` (best_ask) | string | Best ask price                                                  |
-| `bb` (best_bid) | string | Best bid price                                                  |
-
-#### AggOrderbook
-
-| Name             | Type               | Description                                                             |
-| ---------------- | ------------------ | ----------------------------------------------------------------------- |
-| `asks`           | array              | List of ask aggregated orders (sell side), each with `price` and `size` |
-| `asset_id`       | string             | Asset Id identifier                                                     |
-| `bids`           | array              | List of aggregated bid orders (buy side), each with `price` and `size`  |
-| `hash`           | string             | Unique hash ID for this orderbook snapshot                              |
-| `market`         | string             | Market or condition ID                                                  |
-| `min_order_size` | string             | Minimum allowed order size                                              |
-| `neg_risk`       | boolean            | NegRisk or not                                                          |
-| `tick_size`      | string             | Minimum tick size                                                       |
-| `timestamp`      | string (timestamp) | Timestamp in milliseconds since epoch (UNIX time \* 1000)               |
-
-##### `asks`/`bids` scheema
-
-| Name    | Type   | Description        |
-| ------- | ------ | ------------------ |
-| `price` | string | Price level        |
-| `size`  | string | Size at that price |
-
-##### Initial data dump on connection
-
-When the connection is stablished, if a `filter` is used, the server will dump an initial snapshoot of recent data
-
-#### LastTradePrice
-
-| Name           | Type   | Description                        |
-| -------------- | ------ | ---------------------------------- |
-| `asset_id`     | string | Asset Id identifier                |
-| `fee_rate_bps` | string | Fee rate in basis points (bps)     |
-| `market`       | string | Market or condition ID             |
-| `price`        | string | Trade price (e.g., `0.5`)          |
-| `side`         | string | Side of the order: `BUY` or `SELL` |
-| `size`         | string | Size of the trade                  |
-
-#### TickSizeChange
-
-| Name            | Type   | Description                          |
-| --------------- | ------ | ------------------------------------ |
-| `market`        | string | Market or condition ID               |
-| `asset_id`      | string | Array of two `ERC1155` asset ID      |
-| `old_tick_size` | string | Previous tick size before the change |
-| `new_tick_size` | string | Updated tick size after the change   |
-
-#### ClobMarket
-
-| Name             | Type      | Description                                                        |
-| ---------------- | --------- | ------------------------------------------------------------------ |
-| `market`         | string    | Market or condition ID                                             |
-| `asset_ids`      | [2]string | Array of two `ERC1155` asset ID identifiers associated with market |
-| `min_order_size` | string    | Minimum size allowed for an order                                  |
-| `tick_size`      | string    | Minimum allowable price increment                                  |
-| `neg_risk`       | boolean   | Indicates if the market is negative risk                           |
+- Check the troubleshooting section
+- Review the logs
+- Open an issue on GitHub
