@@ -19,246 +19,121 @@ const allMarkets = new Map<
 >();
 // Track when markets were last seen in activity
 const lastActivityTime = new Map<string, number>();
+// Store market descriptions and metadata
+const marketDescriptions = new Map<string, string>();
+const marketCategories = new Map<string, string>();
 
-// Smart category detection based on keywords
-function detectCategory(title: string): string | undefined {
-    const titleLower = title.toLowerCase();
-
-    // Define category keywords with priority
-    const categoryKeywords: [string, string[]][] = [
-        [
-            "Politics",
-            [
-                "election",
-                "political",
-                "politician",
-                "government",
-                "senate",
-                "congress",
-                "parliament",
-                "vote",
-                "candidate",
-                "campaign",
-                "trump",
-                "biden",
-                "harris",
-                "republican",
-                "democrat",
-            ],
-        ],
-        [
-            "Sports",
-            [
-                "win",
-                "nfl",
-                "nba",
-                "nhl",
-                "nfl",
-                "world cup",
-                "premier league",
-                "football",
-                "basketball",
-                "hockey",
-                "soccer",
-                "golf",
-                "tennis",
-                "champion",
-                "match",
-                "game",
-                "team",
-                "score",
-                "afc",
-                "psg",
-                "sunderland",
-                "brighton",
-                "arsenal",
-                "liverpool",
-                "chelsea",
-                "manchester",
-            ],
-        ],
-        [
-            "Crypto",
-            [
-                "bitcoin",
-                "ethereum",
-                "crypto",
-                "btc",
-                "eth",
-                "blockchain",
-                "coin",
-                "token",
-                "defi",
-                "nft",
-                "web3",
-                "polygon",
-                "solana",
-                "cardano",
-                "ripple",
-                "dogecoin",
-            ],
-        ],
-        [
-            "Finance",
-            [
-                "stock",
-                "market",
-                "earnings",
-                "ipo",
-                "sec",
-                "inflation",
-                "interest rate",
-                "fed",
-                "treasury",
-                "nasdaq",
-                "dow jones",
-                "s&p",
-                "price",
-                "bond",
-                "currency",
-                "dollar",
-                "yuan",
-                "euro",
-            ],
-        ],
-        [
-            "Tech",
-            [
-                "technology",
-                "tech",
-                "ai",
-                "artificial intelligence",
-                "machine learning",
-                "software",
-                "hardware",
-                "chip",
-                "semiconductor",
-                "gpu",
-                "cpu",
-                "startup",
-                "vc",
-                "venture",
-                "apple",
-                "microsoft",
-                "google",
-                "amazon",
-                "meta",
-                "tesla",
-                "openai",
-            ],
-        ],
-        [
-            "Earnings",
-            [
-                "earnings",
-                "revenue",
-                "profit",
-                "quarter",
-                "fy",
-                "q1",
-                "q2",
-                "q3",
-                "q4",
-                "ebitda",
-                "margin",
-            ],
-        ],
-        [
-            "Geopolitics",
-            [
-                "russia",
-                "ukraine",
-                "china",
-                "taiwan",
-                "israel",
-                "iran",
-                "north korea",
-                "conflict",
-                "war",
-                "ceasefire",
-                "peace",
-                "treaty",
-                "diplomatic",
-                "international",
-            ],
-        ],
-        [
-            "Culture",
-            [
-                "movie",
-                "film",
-                "music",
-                "actor",
-                "actress",
-                "award",
-                "oscar",
-                "grammy",
-                "emmy",
-                "entertainment",
-                "celebrity",
-                "show",
-                "series",
-                "episode",
-            ],
-        ],
-        [
-            "World",
-            [
-                "world",
-                "global",
-                "international",
-                "country",
-                "nation",
-                "population",
-                "climate",
-                "environment",
-                "weather",
-                "natural disaster",
-            ],
-        ],
-        [
-            "Economy",
-            [
-                "economic",
-                "gdp",
-                "unemployment",
-                "recession",
-                "boom",
-                "housing",
-                "real estate",
-                "commodity",
-                "oil",
-                "gas",
-                "agriculture",
-            ],
-        ],
-        ["Elections", ["election", "vote", "ballot", "electoral", "poll", "campaign", "candidate"]],
-    ];
-
-    // Check keywords in order of priority
-    for (const [category, keywords] of categoryKeywords) {
-        for (const keyword of keywords) {
-            if (titleLower.includes(keyword)) {
-                return category;
-            }
+// Fetch market metadata (description and category via tags) by market ID
+async function fetchMarketMetadata(
+    marketId: string,
+): Promise<{ description?: string; category?: string }> {
+    return new Promise(async resolve => {
+        if (!marketId) {
+            resolve({});
+            return;
         }
-    }
 
-    return undefined;
+        try {
+            // First, get market by slug to get the numeric ID and description
+            const marketData = await new Promise<any>(res => {
+                const options = {
+                    hostname: "gamma-api.polymarket.com",
+                    port: 443,
+                    path: `/markets?slug=${marketId}&limit=1`,
+                    method: "GET",
+                    headers: { "Content-Type": "application/json" },
+                    timeout: 5000,
+                };
+
+                const req = https.request(options, response => {
+                    let data = "";
+                    response.on("data", chunk => {
+                        data += chunk;
+                    });
+                    response.on("end", () => {
+                        try {
+                            const markets = JSON.parse(data);
+                            if (Array.isArray(markets) && markets.length > 0) {
+                                res(markets[0]);
+                            } else {
+                                res(null);
+                            }
+                        } catch (e) {
+                            res(null);
+                        }
+                    });
+                });
+                req.on("error", () => res(null));
+                req.on("timeout", () => {
+                    req.destroy();
+                    res(null);
+                });
+                req.end();
+            });
+
+            if (!marketData || !marketData.id) {
+                resolve({});
+                return;
+            }
+
+            // Now fetch tags using the numeric market ID
+            const tagsData = await new Promise<any[]>(res => {
+                const options = {
+                    hostname: "gamma-api.polymarket.com",
+                    port: 443,
+                    path: `/markets/${marketData.id}/tags`,
+                    method: "GET",
+                    headers: { "Content-Type": "application/json" },
+                    timeout: 5000,
+                };
+
+                const req = https.request(options, response => {
+                    let data = "";
+                    response.on("data", chunk => {
+                        data += chunk;
+                    });
+                    response.on("end", () => {
+                        try {
+                            const tags = JSON.parse(data);
+                            res(Array.isArray(tags) ? tags : []);
+                        } catch (e) {
+                            res([]);
+                        }
+                    });
+                });
+                req.on("error", () => res([]));
+                req.on("timeout", () => {
+                    req.destroy();
+                    res([]);
+                });
+                req.end();
+            });
+
+            // Use the first tag as the category (tags are ordered by relevance)
+            const category = tagsData.length > 0 ? tagsData[0].label : undefined;
+
+            resolve({
+                description: marketData.description || undefined,
+                category: category,
+            });
+        } catch (e) {
+            resolve({});
+        }
+    });
 }
 
-// Check individual market status by ID
-async function checkMarketStatus(marketId: string): Promise<boolean> {
+// Check individual market status by slug
+async function checkMarketStatus(marketSlug: string): Promise<boolean> {
     return new Promise(resolve => {
-        if (!marketId) {
-            resolve(true); // If no ID, assume active
+        if (!marketSlug) {
+            resolve(true); // If no slug, assume active
             return;
         }
 
         const options = {
-            hostname: "clob.polymarket.com",
+            hostname: "gamma-api.polymarket.com",
             port: 443,
-            path: `/markets/${marketId}`,
+            path: `/markets?slug=${marketSlug}&limit=1`,
             method: "GET",
             headers: {
                 "Content-Type": "application/json",
@@ -273,19 +148,57 @@ async function checkMarketStatus(marketId: string): Promise<boolean> {
                 data += chunk;
             });
 
-            res.on("end", () => {
+            res.on("end", async () => {
                 try {
                     if (res.statusCode === 200) {
-                        const market = JSON.parse(data);
-                        // Consider market closed if:
-                        // - active is false
-                        // - closed is true
-                        // - enable_order_book is false (means trading is disabled, likely in review)
-                        const isActive =
-                            market.active !== false &&
-                            market.closed !== true &&
-                            market.enable_order_book !== false;
-                        resolve(isActive);
+                        const markets = JSON.parse(data);
+                        if (Array.isArray(markets) && markets.length > 0) {
+                            const market = markets[0];
+
+                            // Store description if available
+                            if (market.description) {
+                                marketDescriptions.set(marketSlug, market.description);
+                            }
+
+                            // Fetch tags for category if we have numeric ID
+                            if (market.id && !marketCategories.has(marketSlug)) {
+                                const tagsOptions = {
+                                    hostname: "gamma-api.polymarket.com",
+                                    port: 443,
+                                    path: `/markets/${market.id}/tags`,
+                                    method: "GET",
+                                    headers: { "Content-Type": "application/json" },
+                                    timeout: 3000,
+                                };
+
+                                https
+                                    .get(tagsOptions, tagsRes => {
+                                        let tagsData = "";
+                                        tagsRes.on("data", chunk => {
+                                            tagsData += chunk;
+                                        });
+                                        tagsRes.on("end", () => {
+                                            try {
+                                                const tags = JSON.parse(tagsData);
+                                                if (Array.isArray(tags) && tags.length > 0) {
+                                                    marketCategories.set(marketSlug, tags[0].label);
+                                                }
+                                            } catch (e) {
+                                                /* ignore */
+                                            }
+                                        });
+                                    })
+                                    .on("error", () => {
+                                        /* ignore */
+                                    });
+                            }
+
+                            // Consider market closed if active is false or closed is true
+                            const isActive = market.active !== false && market.closed !== true;
+                            resolve(isActive);
+                        } else {
+                            resolve(true); // Market not found, assume active
+                        }
                     } else {
                         resolve(true); // Default to active if we can't check
                     }
@@ -400,6 +313,55 @@ const onMessage = (_: RealTimeDataClient, message: Message): void => {
                 );
             }
 
+            // Fetch metadata for markets that don't have it yet (new or missing)
+            if (marketId && !marketDescriptions.has(marketId)) {
+                // Fire and forget - will be picked up on next update
+                fetchMarketMetadata(marketId)
+                    .then(metadata => {
+                        if (metadata.description) {
+                            marketDescriptions.set(marketId, metadata.description);
+                        }
+                        if (metadata.category) {
+                            marketCategories.set(marketId, metadata.category);
+                            // Re-emit market with correct category
+                            console.log(
+                                JSON.stringify({
+                                    title: payload.title,
+                                    outcome: payload.outcome,
+                                    probability: probability,
+                                    marketId: marketId,
+                                    category: metadata.category,
+                                    active: true,
+                                    marketUrl: marketId
+                                        ? `https://polymarket.com/market/${marketId}`
+                                        : undefined,
+                                    description: metadata.description,
+                                    lastTransaction: {
+                                        delta: undefined,
+                                        deltaStr: "category update",
+                                        side: payload.side,
+                                        size: payload.size,
+                                        timestamp: Date.now(),
+                                        time: new Date().toLocaleString("en-US", {
+                                            year: "numeric",
+                                            month: "2-digit",
+                                            day: "2-digit",
+                                            hour: "2-digit",
+                                            minute: "2-digit",
+                                            second: "2-digit",
+                                            hour12: false,
+                                        }),
+                                    },
+                                    action: "update_metadata",
+                                }),
+                            );
+                        }
+                    })
+                    .catch(() => {
+                        // Ignore errors
+                    });
+            }
+
             // Check if market is active (default to true if not specified)
             const isActive = payload.active !== false;
             activeMarkets.set(marketKey, isActive);
@@ -443,24 +405,45 @@ const onMessage = (_: RealTimeDataClient, message: Message): void => {
             // Log all changes
             if (shouldLog) {
                 // Output as JSON so WebSocket server can parse and relay all fields
-                // Try to extract category from payload or use smart detection
+                // ONLY use API or payload category - no keyword fallback
                 let category =
-                    payload.category || payload.group || detectCategory(payload.title || "");
+                    (marketId ? marketCategories.get(marketId) : undefined) ||
+                    payload.category ||
+                    payload.group ||
+                    undefined; // Will be "Uncategorized" until API fetch completes
+
+                const timestamp = Date.now();
+                const date = new Date(timestamp);
+                const humanReadableTime = date.toLocaleString("en-US", {
+                    year: "numeric",
+                    month: "2-digit",
+                    day: "2-digit",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    second: "2-digit",
+                    hour12: false,
+                });
 
                 const logData = {
                     title: payload.title,
                     outcome: payload.outcome,
                     probability: probability,
-                    delta: delta,
-                    deltaStr: deltaStr.replace(" (", "").replace(")", ""),
-                    side: payload.side,
-                    size: payload.size,
                     marketId: marketId,
                     category: category,
                     active: true,
-                    timestamp: Date.now(),
                     // Market URL: https://polymarket.com/market/{marketId}
                     marketUrl: marketId ? `https://polymarket.com/market/${marketId}` : undefined,
+                    // Include description if available
+                    description: marketId ? marketDescriptions.get(marketId) : undefined,
+                    // Last transaction details (changes frequently)
+                    lastTransaction: {
+                        delta: delta,
+                        deltaStr: deltaStr.replace(" (", "").replace(")", ""),
+                        side: payload.side,
+                        size: payload.size,
+                        timestamp: timestamp,
+                        time: humanReadableTime,
+                    },
                 };
                 console.log(JSON.stringify(logData));
             }

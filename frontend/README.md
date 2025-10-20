@@ -1,73 +1,139 @@
-# React + TypeScript + Vite
+# Polymarket Real-Time Data Client - Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A React-based frontend dashboard for monitoring Polymarket probability changes in real-time.
 
-Currently, two official plugins are available:
+## Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- **Multi-page Navigation**: Clean sidebar navigation with multiple pages
+- **Dashboard Page**: Real-time market probability tracking with filtering and search
+- **JSON View Page**: Export and view market data in JSON format with multi-category filtering
+- **Analytics Page**: Statistical insights and market breakdowns
+- **Settings Page**: Configure WebSocket server and display preferences
+- **About Page**: Project information and technology stack
+- **Modern UI**: Built with React 19, TypeScript, and Tailwind CSS
+- **Responsive Design**: Works on desktop and mobile devices
 
-## React Compiler
+## Pages
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### 📊 Dashboard
 
-## Expanding the ESLint configuration
+- View all real-time market updates
+- **Dynamic category filtering** - Buttons auto-generated from actual data with counts
+- **Enhanced keyword search** - Searches in title, outcome, AND description
+- Color-coded probability deltas (green/red)
+- Click cards to open markets on Polymarket
+- Categories sorted by popularity
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+### 📄 JSON View
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+- Real-time market data displayed as formatted JSON
+- **Dynamic multi-category selection** - Categories auto-generated with market counts
+- Select/deselect multiple categories
+- Keyword search filtering
+- Live updates as new markets are added
+- Copy JSON to clipboard
+- Shows JSON size in KB
+- Includes market descriptions fetched from Polymarket API
+- Human-readable timestamps for easy reading
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+### 📈 Analytics
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+- Total markets count
+- Average probability across all markets
+- Positive vs negative probability changes
+- **All categories breakdown** with visualizations (sorted by count)
+- Scrollable list showing every category with market counts and percentages
+
+### ⚙️ Settings
+
+- Configure WebSocket server URL
+- **Purge Database** - Force delete IndexedDB cache and reload
+- Display preferences (coming soon)
+
+### ℹ️ About
+
+- Project overview and features
+- Technology stack information
+- Version information
+
+## Tech Stack
+
+- **React 19** - UI framework
+- **TypeScript** - Type safety
+- **Tailwind CSS** - Styling
+- **React Router** - Navigation
+- **Vite** - Build tool
+- **WebSocket** - Real-time data
+- **IndexedDB** - Local data caching
+
+## Development
+
+### Start Development Server
+
+```bash
+pnpm dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+The app will be available at http://localhost:5173
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+### Build for Production
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+pnpm build
 ```
+
+### Preview Production Build
+
+```bash
+pnpm preview
+```
+
+## Project Structure
+
+```
+frontend/
+├── src/
+│   ├── components/
+│   │   ├── Sidebar.tsx         # Navigation sidebar
+│   │   ├── Layout.tsx          # Page layout wrapper
+│   │   ├── MarketCard.tsx      # Market display card
+│   │   └── ConnectionStatus.tsx # WebSocket status
+│   ├── pages/
+│   │   ├── Dashboard.tsx       # Main dashboard page
+│   │   ├── JsonView.tsx        # JSON view page
+│   │   ├── Analytics.tsx       # Analytics page
+│   │   ├── Settings.tsx        # Settings page
+│   │   └── About.tsx           # About page
+│   ├── hooks/
+│   │   └── useWebSocket.ts     # WebSocket hook
+│   ├── db/
+│   │   └── marketDb.ts         # IndexedDB utilities
+│   ├── types.ts                # TypeScript types
+│   ├── App.tsx                 # Main app component
+│   └── main.tsx                # Entry point
+├── package.json
+└── vite.config.ts
+```
+
+## Navigation
+
+The sidebar provides easy navigation between pages:
+
+- **Dashboard** (/) - Main market monitoring interface
+- **JSON View** (/json) - JSON-formatted market data view
+- **Analytics** (/analytics) - Statistical insights
+- **Settings** (/settings) - Configuration options
+- **About** (/about) - Project information
+
+## WebSocket Connection
+
+The frontend connects to a WebSocket server at `ws://localhost:8080` by default.
+Make sure the backend WebSocket server is running before starting the frontend.
+
+## Cache Management
+
+Market data is cached locally using IndexedDB for persistence. You can clear the cache from the Settings page or Dashboard page.
+
+## License
+
+MIT License - see LICENSE file for details.

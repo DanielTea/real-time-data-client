@@ -6,14 +6,21 @@ A real-time WebSocket client for monitoring Polymarket probability changes with 
 
 - **Real-time probability monitoring**: Track all probability changes across Polymarket markets
 - **Delta visualization**: See probability changes with color-coded indicators (green/red)
-- **Category filtering**: Filter markets by Polymarket categories (Politics, Sports, Crypto, Finance, Tech, etc.)
-- **Keyword search**: Search markets by title or outcome
+- **Dynamic category filtering**: Filter buttons generated automatically from actual market data with counts
+- **Keyword search**: Search markets by title, outcome, or description (searches all text fields)
 - **Automatic market cleanup**: Closed markets are automatically removed from the UI
-- **Modern UI**: Clean, responsive React interface with Tailwind CSS
+- **Modern UI**: Clean, responsive React interface with Tailwind CSS and sidebar navigation
+- **Multi-page navigation**: Dashboard, Analytics, Settings, and About pages
+- **Analytics dashboard**: Statistical insights with market breakdowns and trends
 - **WebSocket streaming**: Live updates without page refresh
 - **Local caching**: IndexedDB-based market data cache - no need to re-stream markets on reload
 - **Clickable markets**: Click any card to open the market on Polymarket in a new tab
 - **Market persistence**: Cached markets are restored on app restart
+- **Customizable settings**: Configure WebSocket server and display preferences
+- **Market descriptions**: Automatically fetched from Polymarket Gamma API and included in JSON view
+- **API-sourced categories**: Categories fetched directly from Polymarket API for accurate classification (fallback to keyword detection)
+- **Human-readable timestamps**: Both Unix timestamp and formatted time (MM/DD/YYYY, HH:MM:SS) included in market data
+- **Transaction separation**: Transaction-specific data (delta, side, size, timestamp) organized in `lastTransaction` object for clarity
 
 ## Architecture
 
@@ -74,6 +81,39 @@ CLOB_API_KEY=001307ad-e84d-041c-015c-8362334df839
 CLOB_SECRET=Z1eExXDOPOamA58iqMU0ekWQ3QcPk4_1Oy5uvJXadzU=
 CLOB_PASSPHRASE=0c17d5684523c36e96555e74cebc6756928972671b5b22ced2dbd674b0dde001
 ```
+
+## Quick Start
+
+Once you've completed the setup, start the app with these commands:
+
+### Terminal 1: Start the WebSocket Server
+
+```bash
+node websocket-server.js
+```
+
+### Terminal 2: Start the Frontend
+
+```bash
+cd frontend
+pnpm dev
+```
+
+### Access the Dashboard
+
+Open http://localhost:5173 in your browser to see the real-time dashboard.
+
+## Frontend Navigation
+
+The frontend features a sidebar navigation with multiple pages:
+
+- **📊 Dashboard** (`/`) - Main page showing all real-time market updates with filtering and search
+- **📄 JSON View** (`/json`) - Real-time market data in JSON format with multi-category selection and keyword filtering
+- **📈 Analytics** (`/analytics`) - Statistical insights including market counts, probability averages, and category breakdowns
+- **⚙️ Settings** (`/settings`) - Configure WebSocket server URL, clear cache, and manage display preferences
+- **ℹ️ About** (`/about`) - Project information, features list, and technology stack details
+
+---
 
 ## Usage
 
@@ -146,7 +186,8 @@ real-time-data-client/
 │   └── all-markets-probability-changes.ts
 ├── frontend/              # React frontend
 │   ├── src/
-│   │   ├── components/    # React components
+│   │   ├── components/    # React components (Sidebar, Layout, MarketCard, etc.)
+│   │   ├── pages/         # Page components (Dashboard, JsonView, Analytics, Settings, About)
 │   │   ├── hooks/         # Custom hooks
 │   │   ├── db/            # IndexedDB caching
 │   │   └── types.ts       # TypeScript types
@@ -178,44 +219,56 @@ interface WebSocketMessage {
 ### Market Data
 
 ```typescript
+interface LastTransaction {
+    delta?: number; // Probability change from last update
+    deltaStr?: string; // Human-readable delta (e.g., "+2.5%")
+    side: "BUY" | "SELL"; // Transaction side
+    size: number; // Transaction size
+    timestamp: number; // Unix timestamp in milliseconds
+    time?: string; // Human-readable time (e.g., "10/19/2025, 15:30:45")
+}
+
 interface MarketData {
     title: string;
     outcome: string;
     probability: number;
-    delta?: number;
-    side: "BUY" | "SELL";
-    size: number;
-    timestamp: number;
-    icon?: string;
-    marketUrl?: string;
+    marketId?: string;
     category?: string;
+    active?: boolean;
+    marketUrl?: string;
+    description?: string; // Fetched from Polymarket API (may be undefined initially)
+    lastTransaction: LastTransaction; // Details of the most recent transaction
 }
 ```
 
 ## Configuration
 
-### Category Filtering
+### Dynamic Category Filtering
 
-The dashboard supports filtering by the following Polymarket categories:
+The dashboard **dynamically generates category buttons** based on the actual markets in your data.
 
-- **All** - Show all markets
-- **Trending** - Popular/trending markets
-- **Breaking** - Breaking news markets
-- **New** - Newly listed markets
-- **Politics** - Political events and elections
-- **Sports** - Sports events and outcomes
-- **Finance** - Financial markets and indicators
-- **Crypto** - Cryptocurrency markets
-- **Geopolitics** - International relations and conflicts
-- **Earnings** - Corporate earnings predictions
-- **Tech** - Technology and innovation markets
-- **Culture** - Entertainment and cultural events
-- **World** - Global events
-- **Economy** - Economic indicators and policies
-- **Elections** - Election predictions
-- **Mentions** - Mention-based markets
+**Category Source (Tags API):**
 
-Categories are extracted from market data when available, with a fallback to keyword matching on market titles.
+1. **Tags API** - Fetched from Polymarket Gamma API `/markets/{id}/tags` endpoint (primary source)
+2. **Payload category** - Category provided in the WebSocket stream (rarely available)
+3. **Uncategorized** - Markets without tags (temporary until API fetch completes)
+
+**How it works:**
+
+- Each market's first tag label is used as the category (e.g., "Politics", "Sports", "Crypto")
+- Tags are fetched asynchronously and markets are updated via `update_metadata` action
+- Background checker (every 30s) also populates missing categories
+- Official Polymarket tags ensure accurate categorization
+
+**Features:**
+
+- **Auto-generated buttons** - Only shows categories that have markets
+- **Live counts** - Each button displays the number of markets (e.g., "Sports (203)")
+- **Real-time updates** - Category list and counts update as new markets arrive
+- **Sorted by popularity** - Categories ordered by market count (highest first)
+- **"All" category** - Always shown first with total market count
+
+**Common Categories:** Politics, Sports, Crypto, Finance, Tech, Geopolitics, Culture, Earnings, Economy, World, Elections, and more (varies based on active markets).
 
 ### Filtering Options
 
@@ -237,17 +290,27 @@ Modify `examples/all-markets-probability-changes.ts` to:
 
 ### Common Issues
 
-1. **WebSocket connection failed**
+1. **Port 8080 already in use (EADDRINUSE)**
+
+    ```bash
+    # Kill the process using port 8080
+    lsof -ti:8080 | xargs kill -9
+
+    # Then restart the WebSocket server
+    node websocket-server.js
+    ```
+
+2. **WebSocket connection failed**
     - Check if the bridge server is running
     - Verify port 8080 is available
     - Check firewall settings
 
-2. **No market data**
+3. **No market data**
     - Ensure API credentials are valid
     - Check Polymarket API status
     - Verify network connectivity
 
-3. **Frontend not loading**
+4. **Frontend not loading**
     - Check if `pnpm dev` is running
     - Verify port 5173 is available
     - Check browser console for errors

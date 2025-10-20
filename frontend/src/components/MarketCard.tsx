@@ -67,17 +67,22 @@ export const MarketCard: React.FC<MarketCardProps> = ({ market }) => {
 
                 {/* Bottom info: Last change, side, size, time */}
                 <div className="w-full text-center text-xs text-gray-600 space-y-1 pt-4 border-t border-gray-200">
-                    <div className={`font-medium ${getDeltaColor(market.delta)}`}>
-                        Last change: {formatDelta(market.delta)}
+                    <div className={`font-medium ${getDeltaColor(market.lastTransaction.delta)}`}>
+                        Last change: {formatDelta(market.lastTransaction.delta)}
                     </div>
                     <div className="flex items-center justify-center gap-2 text-gray-500">
-                        <span className={`font-medium ${getSideColor(market.side)}`}>
-                            {market.side}
+                        <span
+                            className={`font-medium ${getSideColor(market.lastTransaction.side)}`}
+                        >
+                            {market.lastTransaction.side}
                         </span>
                         <span>•</span>
-                        <span>Size: {market.size.toFixed(2)}</span>
+                        <span>Size: {market.lastTransaction.size.toFixed(2)}</span>
                         <span>•</span>
-                        <span>{formatTime(market.timestamp)}</span>
+                        <span>
+                            {market.lastTransaction.time ||
+                                formatTime(market.lastTransaction.timestamp)}
+                        </span>
                     </div>
                 </div>
             </div>

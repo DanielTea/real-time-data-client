@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { MarketData, WebSocketMessage } from "../types";
+import type { MarketData } from "../types";
 import { initDb, loadMarkets, saveMarkets } from "../db/marketDb";
 
 export interface MarketPage {
@@ -19,9 +19,18 @@ export const useWebSocket = (url: string) => {
     useEffect(() => {
         const loadCachedData = async () => {
             try {
+                console.log("[Cache] Initializing database...");
                 await initDb();
+                console.log("[Cache] Database initialized successfully");
+                console.log("[Cache] Loading markets from cache...");
                 const cachedPages = await loadMarkets();
+                console.log(`[Cache] Loaded ${cachedPages.length} pages from cache`);
                 if (cachedPages.length > 0) {
+                    const totalMarkets = cachedPages.reduce(
+                        (sum, page) => sum + page.markets.length,
+                        0,
+                    );
+                    console.log(`[Cache] Restoring ${totalMarkets} markets to state`);
                     setPages(cachedPages);
 
                     // Restore previous probabilities from cache
@@ -31,9 +40,16 @@ export const useWebSocket = (url: string) => {
                             previousProbabilities.current.set(key, market.probability);
                         });
                     });
+                    console.log(`[Cache] Successfully restored ${totalMarkets} markets`);
+                } else {
+                    console.log("[Cache] No cached markets found - starting fresh");
                 }
             } catch (err) {
-                console.error("Failed to load cache:", err);
+                console.error("[Cache] Failed to load cache:", err);
+                console.error(
+                    "[Cache] Error details:",
+                    err instanceof Error ? err.message : String(err),
+                );
             }
         };
 
@@ -44,13 +60,21 @@ export const useWebSocket = (url: string) => {
     useEffect(() => {
         // Save immediately on first market arrival
         if (pages.length > 0 && pages.some(p => p.markets.length > 0)) {
-            saveMarkets(pages).catch(err => console.error("Failed to save cache:", err));
+            const totalMarkets = pages.reduce((sum, page) => sum + page.markets.length, 0);
+            console.log(`[Cache] Saving ${totalMarkets} markets across ${pages.length} pages...`);
+            saveMarkets(pages)
+                .then(() => console.log("[Cache] Save completed successfully"))
+                .catch(err => console.error("[Cache] Failed to save cache:", err));
         }
 
         // Then set up a debounced save for subsequent updates
         const saveTimeout = setTimeout(() => {
             if (pages.length > 0) {
-                saveMarkets(pages).catch(err => console.error("Failed to save cache:", err));
+                const totalMarkets = pages.reduce((sum, page) => sum + page.markets.length, 0);
+                console.log(`[Cache] Debounced save: ${totalMarkets} markets...`);
+                saveMarkets(pages)
+                    .then(() => console.log("[Cache] Debounced save completed"))
+                    .catch(err => console.error("[Cache] Failed to save cache:", err));
             }
         }, 5000); // Save every 5 seconds after changes
 
@@ -76,6 +100,28 @@ export const useWebSocket = (url: string) => {
                 return;
             }
 
+            // Handle metadata update (category and description from API)
+            if (data.action === "update_metadata") {
+                console.log(
+                    `Updating metadata for: ${data.title}:${data.outcome} - Category: ${data.category}`,
+                );
+                setPages(prev => {
+                    return prev.map(page => ({
+                        ...page,
+                        markets: page.markets.map(m =>
+                            m.title === data.title && m.outcome === data.outcome
+                                ? {
+                                      ...m,
+                                      category: data.category || m.category,
+                                      description: data.description || m.description,
+                                  }
+                                : m,
+                        ),
+                    }));
+                });
+                return;
+            }
+
             // Handle market data objects directly from the WebSocket server
             if (data.title && data.outcome && data.probability !== undefined) {
                 const marketKey = `${data.title}:${data.outcome}`;
@@ -95,14 +141,19 @@ export const useWebSocket = (url: string) => {
                     title: data.title,
                     outcome: data.outcome,
                     probability: data.probability,
-                    delta,
-                    side: data.side,
-                    size: data.size,
-                    timestamp: data.timestamp,
-                    icon: data.icon,
-                    marketUrl: data.marketUrl,
+                    marketId: data.marketId,
                     category: data.category,
                     active: data.active !== false,
+                    marketUrl: data.marketUrl,
+                    description: data.description,
+                    lastTransaction: data.lastTransaction || {
+                        delta: data.delta || delta,
+                        deltaStr: data.deltaStr,
+                        side: data.side,
+                        size: data.size,
+                        timestamp: data.timestamp || Date.now(),
+                        time: data.time,
+                    },
                 };
 
                 setPages(prev => {

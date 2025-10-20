@@ -1,15 +1,22 @@
+export interface LastTransaction {
+    delta?: number;
+    deltaStr?: string;
+    side: "BUY" | "SELL";
+    size: number;
+    timestamp: number;
+    time?: string;
+}
+
 export interface MarketData {
     title: string;
     outcome: string;
     probability: number;
-    delta?: number;
-    side: "BUY" | "SELL";
-    size: number;
-    timestamp: number;
-    icon?: string;
-    marketUrl?: string;
+    marketId?: string;
     category?: string;
     active?: boolean;
+    marketUrl?: string;
+    description?: string;
+    lastTransaction: LastTransaction;
 }
 
 export interface WebSocketMessage {
