@@ -20,7 +20,8 @@ export const TradingChat: React.FC = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [isInitialized, setIsInitialized] = useState(false);
     const [accountInfo, setAccountInfo] = useState<AccountInfo | null>(null);
-    const [serverUrl] = useState("http://localhost:5001");
+    const [brokerInfo, setBrokerInfo] = useState<{broker: string, supports_leverage: boolean, max_leverage: number} | null>(null);
+    const [serverUrl] = useState("http://localhost:5002"); // Updated to new multi-broker server
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
     // Auto-scroll to bottom when new messages arrive
@@ -38,20 +39,21 @@ export const TradingChat: React.FC = () => {
     }, []);
 
     const initializeServer = async () => {
-        const alpacaKey = localStorage.getItem("alpaca_key");
-        const alpacaSecret = localStorage.getItem("alpaca_secret");
+        const broker = localStorage.getItem("broker") || "alpaca";
+        const brokerKey = localStorage.getItem(`${broker}_key`);
+        const brokerSecret = localStorage.getItem(`${broker}_secret`);
         const claudeKey = localStorage.getItem("claude_key");
         const deepseekKey = localStorage.getItem("deepseek_key");
         const aiModel = localStorage.getItem("ai_model") || "claude";
         const paperMode = localStorage.getItem("paper_mode") === "true";
 
-        // Validate API keys based on selected model
-        if (!alpacaKey || !alpacaSecret) {
+        // Validate broker API keys
+        if (!brokerKey || !brokerSecret) {
             setMessages([
                 {
                     role: "assistant",
                     content:
-                        "⚠️ Please configure your Alpaca API keys in Settings before using the trading chat.",
+                        `⚠️ Please configure your ${broker.charAt(0).toUpperCase() + broker.slice(1)} API keys in Settings before using the trading chat.`,
                     timestamp: new Date(),
                 },
             ]);
@@ -83,30 +85,51 @@ export const TradingChat: React.FC = () => {
         }
 
         try {
+            const requestBody: any = {
+                broker: broker,
+                claude_key: claudeKey,
+                deepseek_key: deepseekKey,
+                ai_model: aiModel,
+                paper_mode: paperMode,
+            };
+            
+            // Add broker-specific keys
+            requestBody[`${broker}_key`] = brokerKey;
+            requestBody[`${broker}_secret`] = brokerSecret;
+            
             const response = await fetch(`${serverUrl}/api/initialize`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
                 },
-                body: JSON.stringify({
-                    alpaca_key: alpacaKey,
-                    alpaca_secret: alpacaSecret,
-                    claude_key: claudeKey,
-                    deepseek_key: deepseekKey,
-                    ai_model: aiModel,
-                    paper_mode: paperMode,
-                }),
+                body: JSON.stringify(requestBody),
             });
 
             if (response.ok) {
                 const data = await response.json();
                 const modelName =
                     data.ai_model === "deepseek" ? "DeepSeek-V3.2-Exp" : "Claude 3.5 Sonnet";
+                const brokerName = data.broker || broker;
+                const supportsLeverage = data.supports_leverage || false;
+                const maxLeverage = data.max_crypto_leverage || 1;
+                
+                setBrokerInfo({
+                    broker: brokerName,
+                    supports_leverage: supportsLeverage,
+                    max_leverage: maxLeverage
+                });
+                
                 setIsInitialized(true);
+                
+                let leverageInfo = "";
+                if (supportsLeverage) {
+                    leverageInfo = ` 🚀 Leverage trading enabled (up to ${maxLeverage}x on crypto)!`;
+                }
+                
                 setMessages([
                     {
                         role: "assistant",
-                        content: `✅ Trading chat initialized with ${modelName} in ${paperMode ? "PAPER" : "LIVE"} mode. You can now ask me to execute trades or check your portfolio. Try saying "show my account balance" or "buy $100 of BTC".`,
+                        content: `✅ Trading chat initialized with ${brokerName} broker using ${modelName} in ${paperMode ? "PAPER" : "LIVE"} mode.${leverageInfo}\n\nYou can now execute trades! Try:\n• "buy $100 of BTC${supportsLeverage ? ' with 10x leverage' : ''}"\n• "show my account balance"\n• "what positions do I have?"`,
                         timestamp: new Date(),
                     },
                 ]);
@@ -220,7 +243,14 @@ export const TradingChat: React.FC = () => {
         <div className="container mx-auto px-4 py-8 h-full flex flex-col">
             <div className="mb-6">
                 <h1 className="text-3xl font-bold text-gray-900 mb-2">💬 Trading Chat</h1>
-                <p className="text-gray-600">Chat with Claude AI to execute trades on Alpaca</p>
+                <p className="text-gray-600">
+                    Chat with AI to execute trades{brokerInfo ? ` on ${brokerInfo.broker}` : ''}
+                    {brokerInfo?.supports_leverage && (
+                        <span className="ml-2 px-2 py-1 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-xs rounded-full font-semibold">
+                            ⚡ {brokerInfo.max_leverage}x LEVERAGE
+                        </span>
+                    )}
+                </p>
             </div>
 
             {/* Account Info Banner */}
@@ -327,8 +357,10 @@ export const TradingChat: React.FC = () => {
                         </button>
                     </div>
                     <div className="mt-2 text-xs text-gray-500">
-                        💡 Try: "buy $50 of ETH", "show my positions", "what's the BTC price?",
-                        "sell all my DOGE"
+                        💡 Try: {brokerInfo?.supports_leverage 
+                            ? '"buy $50 of BTC with 10x leverage", "short ETH at 5x", "show positions"'
+                            : '"buy $50 of ETH", "show my positions", "what\'s the BTC price?"'
+                        }
                     </div>
                 </div>
             </div>

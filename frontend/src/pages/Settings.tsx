@@ -2,8 +2,13 @@ import React, { useState, useEffect } from "react";
 
 export const Settings: React.FC = () => {
     const [wsUrl, setWsUrl] = useState("ws://localhost:8080");
+    const [broker, setBroker] = useState<"alpaca" | "bybit" | "binance">("alpaca");
     const [alpacaKey, setAlpacaKey] = useState("");
     const [alpacaSecret, setAlpacaSecret] = useState("");
+    const [bybitKey, setBybitKey] = useState("");
+    const [bybitSecret, setBybitSecret] = useState("");
+    const [binanceKey, setBinanceKey] = useState("");
+    const [binanceSecret, setBinanceSecret] = useState("");
     const [claudeKey, setClaudeKey] = useState("");
     const [deepseekKey, setDeepseekKey] = useState("");
     const [aiModel, setAiModel] = useState<"claude" | "deepseek">("claude");
@@ -12,16 +17,26 @@ export const Settings: React.FC = () => {
 
     // Load settings from localStorage
     useEffect(() => {
+        const savedBroker = (localStorage.getItem("broker") as "alpaca" | "bybit" | "binance") || "alpaca";
         const savedAlpacaKey = localStorage.getItem("alpaca_key") || "";
         const savedAlpacaSecret = localStorage.getItem("alpaca_secret") || "";
+        const savedBybitKey = localStorage.getItem("bybit_key") || "";
+        const savedBybitSecret = localStorage.getItem("bybit_secret") || "";
+        const savedBinanceKey = localStorage.getItem("binance_key") || "";
+        const savedBinanceSecret = localStorage.getItem("binance_secret") || "";
         const savedClaudeKey = localStorage.getItem("claude_key") || "";
         const savedDeepseekKey = localStorage.getItem("deepseek_key") || "";
         const savedAiModel =
             (localStorage.getItem("ai_model") as "claude" | "deepseek") || "claude";
         const savedPaperMode = localStorage.getItem("paper_mode") === "true";
 
+        setBroker(savedBroker);
         setAlpacaKey(savedAlpacaKey);
         setAlpacaSecret(savedAlpacaSecret);
+        setBybitKey(savedBybitKey);
+        setBybitSecret(savedBybitSecret);
+        setBinanceKey(savedBinanceKey);
+        setBinanceSecret(savedBinanceSecret);
         setClaudeKey(savedClaudeKey);
         setDeepseekKey(savedDeepseekKey);
         setAiModel(savedAiModel);
@@ -29,8 +44,13 @@ export const Settings: React.FC = () => {
     }, []);
 
     const handleSaveApiKeys = () => {
+        localStorage.setItem("broker", broker);
         localStorage.setItem("alpaca_key", alpacaKey);
         localStorage.setItem("alpaca_secret", alpacaSecret);
+        localStorage.setItem("bybit_key", bybitKey);
+        localStorage.setItem("bybit_secret", bybitSecret);
+        localStorage.setItem("binance_key", binanceKey);
+        localStorage.setItem("binance_secret", binanceSecret);
         localStorage.setItem("claude_key", claudeKey);
         localStorage.setItem("deepseek_key", deepseekKey);
         localStorage.setItem("ai_model", aiModel);
@@ -53,45 +73,151 @@ export const Settings: React.FC = () => {
                 {/* Trading API Configuration */}
                 <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
                     <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                        🔐 Trading API Configuration
+                        🔐 Trading Broker Configuration
                     </h2>
                     <div className="space-y-4">
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Alpaca API Key
+                                📊 Select Broker
                             </label>
-                            <input
-                                type="password"
-                                value={alpacaKey}
-                                onChange={e => setAlpacaKey(e.target.value)}
+                            <select
+                                value={broker}
+                                onChange={e => setBroker(e.target.value as "alpaca" | "bybit" | "binance")}
                                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                                placeholder="Enter your Alpaca API key"
-                            />
+                            >
+                                <option value="alpaca">Alpaca (Stocks + Crypto + Options)</option>
+                                <option value="bybit">Bybit (Crypto Futures, 100x Leverage)</option>
+                                <option value="binance">Binance (Crypto Futures, 125x Leverage)</option>
+                            </select>
                             <p className="mt-1 text-xs text-gray-500">
-                                Get your API key from{" "}
-                                <a
-                                    href="https://alpaca.markets/"
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-blue-600 hover:underline"
-                                >
-                                    Alpaca Markets
-                                </a>
+                                Choose your trading broker
                             </p>
                         </div>
 
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Alpaca Secret Key
-                            </label>
-                            <input
-                                type="password"
-                                value={alpacaSecret}
-                                onChange={e => setAlpacaSecret(e.target.value)}
-                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                                placeholder="Enter your Alpaca secret key"
-                            />
-                        </div>
+                        {broker === "alpaca" && (
+                            <>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Alpaca API Key
+                                    </label>
+                                    <input
+                                        type="password"
+                                        value={alpacaKey}
+                                        onChange={e => setAlpacaKey(e.target.value)}
+                                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                                        placeholder="Enter your Alpaca API key"
+                                    />
+                                    <p className="mt-1 text-xs text-gray-500">
+                                        Get your API key from{" "}
+                                        <a
+                                            href="https://alpaca.markets/"
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-blue-600 hover:underline"
+                                        >
+                                            Alpaca Markets
+                                        </a>
+                                    </p>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Alpaca Secret Key
+                                    </label>
+                                    <input
+                                        type="password"
+                                        value={alpacaSecret}
+                                        onChange={e => setAlpacaSecret(e.target.value)}
+                                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                                        placeholder="Enter your Alpaca secret key"
+                                    />
+                                </div>
+                            </>
+                        )}
+
+                        {broker === "bybit" && (
+                            <>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Bybit API Key
+                                    </label>
+                                    <input
+                                        type="password"
+                                        value={bybitKey}
+                                        onChange={e => setBybitKey(e.target.value)}
+                                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                                        placeholder="Enter your Bybit API key"
+                                    />
+                                    <p className="mt-1 text-xs text-gray-500">
+                                        Get your API key from{" "}
+                                        <a
+                                            href="https://www.bybit.com/app/user/api-management"
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-blue-600 hover:underline"
+                                        >
+                                            Bybit API Management
+                                        </a>{" "}
+                                        (Testnet for paper trading)
+                                    </p>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Bybit Secret Key
+                                    </label>
+                                    <input
+                                        type="password"
+                                        value={bybitSecret}
+                                        onChange={e => setBybitSecret(e.target.value)}
+                                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                                        placeholder="Enter your Bybit secret key"
+                                    />
+                                </div>
+                            </>
+                        )}
+
+                        {broker === "binance" && (
+                            <>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Binance API Key
+                                    </label>
+                                    <input
+                                        type="password"
+                                        value={binanceKey}
+                                        onChange={e => setBinanceKey(e.target.value)}
+                                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                                        placeholder="Enter your Binance API key"
+                                    />
+                                    <p className="mt-1 text-xs text-gray-500">
+                                        Get your API key from{" "}
+                                        <a
+                                            href="https://www.binance.com/en/my/settings/api-management"
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-blue-600 hover:underline"
+                                        >
+                                            Binance API Management
+                                        </a>{" "}
+                                        (Testnet for paper trading)
+                                    </p>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Binance Secret Key
+                                    </label>
+                                    <input
+                                        type="password"
+                                        value={binanceSecret}
+                                        onChange={e => setBinanceSecret(e.target.value)}
+                                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                                        placeholder="Enter your Binance secret key"
+                                    />
+                                </div>
+                            </>
+                        )}
 
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">

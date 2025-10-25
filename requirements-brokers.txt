@@ -1,0 +1,29 @@
+# Broker abstraction layer dependencies
+# Existing Alpaca dependencies
+alpaca-py>=0.8.0
+alpaca-trade-api>=3.0.0
+
+# HTTP requests for custom broker implementations
+requests>=2.31.0
+
+# Flask for web server
+flask>=3.0.0
+flask-cors>=4.0.0
+
+# AI clients
+anthropic>=0.18.0
+openai>=1.12.0
+
+# Data analysis
+pandas>=2.0.0
+numpy>=1.24.0
+
+# Yahoo Finance for technical analysis
+yfinance>=0.2.36
+
+# Date/time handling
+python-dateutil>=2.8.2
+
+# Optional: Official Python SDKs for brokers (recommended for production)
+# pybit>=5.6.0  # Official Bybit Python SDK
+# python-binance>=1.0.19  # Official Binance Python SDK

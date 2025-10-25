@@ -42,7 +42,7 @@ export const AutoTrading: React.FC = () => {
     ]);
     const [keywordInput, setKeywordInput] = useState("");
     const [logs, setLogs] = useState<TradingLog[]>([]);
-    const [serverUrl] = useState("http://localhost:5001");
+    const [serverUrl] = useState("http://localhost:5002"); // Updated to new multi-broker server
 
     // Initialize the trading server on mount
     useEffect(() => {
@@ -132,17 +132,18 @@ export const AutoTrading: React.FC = () => {
     };
 
     const initializeServer = async () => {
-        const alpacaKey = localStorage.getItem("alpaca_key");
-        const alpacaSecret = localStorage.getItem("alpaca_secret");
+        const broker = localStorage.getItem("broker") || "alpaca";
+        const brokerKey = localStorage.getItem(`${broker}_key`);
+        const brokerSecret = localStorage.getItem(`${broker}_secret`);
         const claudeKey = localStorage.getItem("claude_key");
         const deepseekKey = localStorage.getItem("deepseek_key");
         const aiModel = localStorage.getItem("ai_model") || "claude";
         const paperMode = localStorage.getItem("paper_mode") === "true";
 
-        // Validate API keys based on selected model
-        if (!alpacaKey || !alpacaSecret) {
+        // Validate broker API keys
+        if (!brokerKey || !brokerSecret) {
             addLog(
-                "⚠️ Please configure your Alpaca API keys in Settings before using auto-trading.",
+                `⚠️ Please configure your ${broker.charAt(0).toUpperCase() + broker.slice(1)} API keys in Settings before using auto-trading.`,
                 "error",
             );
             return;
@@ -165,19 +166,24 @@ export const AutoTrading: React.FC = () => {
         }
 
         try {
+            const requestBody: any = {
+                broker: broker,
+                claude_key: claudeKey,
+                deepseek_key: deepseekKey,
+                ai_model: aiModel,
+                paper_mode: paperMode,
+            };
+            
+            // Add broker-specific keys
+            requestBody[`${broker}_key`] = brokerKey;
+            requestBody[`${broker}_secret`] = brokerSecret;
+            
             const response = await fetch(`${serverUrl}/api/initialize`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
                 },
-                body: JSON.stringify({
-                    alpaca_key: alpacaKey,
-                    alpaca_secret: alpacaSecret,
-                    claude_key: claudeKey,
-                    deepseek_key: deepseekKey,
-                    ai_model: aiModel,
-                    paper_mode: paperMode,
-                }),
+                body: JSON.stringify(requestBody),
             });
 
             if (response.ok) {
