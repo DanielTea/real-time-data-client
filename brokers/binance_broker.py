@@ -176,7 +176,7 @@ class BinanceBroker(BaseBroker):
         return {
             'symbol': symbol,
             'price': float(ticker.get('lastPrice', 0)),
-            'timestamp': datetime.fromtimestamp(int(ticker.get('closeTime', 0)) / 1000),
+            'timestamp': datetime.fromtimestamp(int(ticker.get('closeTime', 0)) / 1000).isoformat(),
             'open': float(ticker.get('openPrice', 0)),
             'high': float(ticker.get('highPrice', 0)),
             'low': float(ticker.get('lowPrice', 0)),
@@ -262,7 +262,7 @@ class BinanceBroker(BaseBroker):
         bars = []
         for kline in klines:
             bars.append({
-                'timestamp': datetime.fromtimestamp(int(kline[0]) / 1000),
+                'timestamp': datetime.fromtimestamp(int(kline[0]) / 1000).isoformat(),
                 'open': float(kline[1]),
                 'high': float(kline[2]),
                 'low': float(kline[3]),
@@ -291,7 +291,7 @@ class BinanceBroker(BaseBroker):
                 'status': order.get('status'),
                 'filled_qty': float(order.get('executedQty', 0)),
                 'filled_avg_price': float(order.get('avgPrice', 0)),
-                'created_at': datetime.fromtimestamp(int(order.get('time', 0)) / 1000),
+                'created_at': datetime.fromtimestamp(int(order.get('time', 0)) / 1000).isoformat(),
             })
         
         return orders
@@ -313,11 +313,12 @@ class BinanceBroker(BaseBroker):
     
     def get_market_status(self) -> Dict[str, Any]:
         """Get market status - crypto markets are always open"""
+        now = datetime.now()
         return {
             'is_open': True,  # Crypto markets are 24/7
-            'next_open': datetime.now(),
-            'next_close': datetime.now() + timedelta(days=365),
-            'timestamp': datetime.now(),
+            'next_open': now.isoformat(),
+            'next_close': (now + timedelta(days=365)).isoformat(),
+            'timestamp': now.isoformat(),
         }
     
     # Binance-specific capabilities

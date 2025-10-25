@@ -51,6 +51,7 @@ autotrading_active = False
 autotrading_thread = None
 autotrading_config = None
 autotrading_logs = []
+autotrading_markets = []  # Store Polymarket data
 conversation_history = []
 
 def add_autotrading_log(message, log_type="info"):
@@ -522,7 +523,18 @@ def _call_claude_with_tools(messages, max_turns):
                 if block.type == "tool_use":
                     tool_name = block.name
                     tool_input = block.input
+                    
+                    # Log tool usage for auto-trading
+                    if autotrading_active:
+                        add_autotrading_log(f"🔧 Using tool: {tool_name}({json.dumps(tool_input)[:100]}...)", "tool")
+                    
                     result = execute_tool(tool_name, tool_input)
+                    
+                    # Log tool result for auto-trading
+                    if autotrading_active:
+                        result_str = json.dumps(result)[:500]
+                        add_autotrading_log(f"✅ Tool result: {result_str}{'...' if len(json.dumps(result)) > 500 else ''}", "tool_result")
+                    
                     tool_results.append({
                         "type": "tool_result",
                         "tool_use_id": block.id,
@@ -556,7 +568,17 @@ def _call_deepseek_with_tools(messages, max_turns):
         for tool_call in message.tool_calls:
             tool_name = tool_call.function.name
             tool_args = json.loads(tool_call.function.arguments)
+            
+            # Log tool usage for auto-trading
+            if autotrading_active:
+                add_autotrading_log(f"🔧 Using tool: {tool_name}({json.dumps(tool_args)[:100]}...)", "tool")
+            
             result = execute_tool(tool_name, tool_args)
+            
+            # Log tool result for auto-trading
+            if autotrading_active:
+                result_str = json.dumps(result)[:500]
+                add_autotrading_log(f"✅ Tool result: {result_str}{'...' if len(json.dumps(result)) > 500 else ''}", "tool_result")
             
             messages.append({
                 "role": "tool",
@@ -740,7 +762,7 @@ Always provide helpful trading advice and execute requested trades."""
 @app.route('/api/autotrading/start', methods=['POST'])
 def start_autotrading():
     """Start auto-trading"""
-    global autotrading_active, autotrading_thread, autotrading_config
+    global autotrading_active, autotrading_thread, autotrading_config, autotrading_markets
     
     if autotrading_active:
         return jsonify({"error": "Auto-trading already active"}), 400
@@ -751,11 +773,15 @@ def start_autotrading():
     data = request.json
     autotrading_config = data
     
+    # Store Polymarket markets if provided (accept both 'markets' and 'polymarketData')
+    autotrading_markets = data.get('markets', []) or data.get('polymarketData', [])
+    
     autotrading_active = True
     autotrading_thread = threading.Thread(target=autotrading_loop, daemon=True)
     autotrading_thread.start()
     
     add_autotrading_log(f"Auto-trading started with {broker.get_broker_name()}", "success")
+    add_autotrading_log(f"Monitoring {len(autotrading_markets)} Polymarket predictions", "info")
     
     return jsonify({"success": True, "message": "Auto-trading started"})
 
@@ -783,7 +809,7 @@ def autotrading_status():
 @app.route('/api/autotrading/logs', methods=['GET'])
 def autotrading_logs_endpoint():
     """Get auto-trading logs"""
-    return jsonify(autotrading_logs)
+    return jsonify({"logs": autotrading_logs})
 
 @app.route('/api/autotrading/logs/clear', methods=['POST'])
 def clear_autotrading_logs():
@@ -794,46 +820,112 @@ def clear_autotrading_logs():
 
 def autotrading_loop():
     """Auto-trading main loop"""
-    global autotrading_active, autotrading_config, conversation_history
+    global autotrading_active, autotrading_config, autotrading_markets, conversation_history
     
-    add_autotrading_log(f"Auto-trading loop started with {broker.get_broker_name()}")
+    add_autotrading_log(f"🤖 Auto-trading loop started with {broker.get_broker_name()}", "success")
     
+    iteration = 0
     while autotrading_active:
         try:
+            iteration += 1
+            add_autotrading_log(f"═══ Cycle #{iteration} Starting ═══", "info")
+            
             # Get account info
+            add_autotrading_log("📊 Fetching account data...", "info")
             account = broker.get_account()
             positions = broker.get_positions()
             
-            # Build trading context
-            context = f"""Current Account:
-- Broker: {broker.get_broker_name()}
-- Cash: ${account.get('cash', 0):.2f}
-- Equity: ${account.get('equity', 0):.2f}
-- Positions: {len(positions)}
-
-Analyze market conditions and suggest trading opportunities."""
+            cash = account.get('cash', 0)
+            equity = account.get('equity', 0) or account.get('portfolio_value', 0)
+            buying_power = account.get('buying_power', 0)
             
-            add_autotrading_log("Analyzing markets...")
+            add_autotrading_log(f"💰 Account: Cash=${cash:.2f}, Equity=${equity:.2f}, Positions={len(positions)}", "info")
+            
+            # Build Polymarket predictions context
+            polymarket_context = ""
+            if autotrading_markets:
+                add_autotrading_log(f"📈 Processing {len(autotrading_markets)} Polymarket predictions...", "info")
+                
+                # Format top predictions
+                top_markets = autotrading_markets[:10]  # Limit to top 10 for context
+                polymarket_context = "\n\nPOLYMARKET PREDICTIONS:\n"
+                for i, market in enumerate(top_markets, 1):
+                    title = market.get('title', 'Unknown')
+                    outcome = market.get('outcome', 'Unknown')
+                    probability = market.get('probability', 0)
+                    category = market.get('category', 'Uncategorized')
+                    polymarket_context += f"{i}. [{category}] {title} - {outcome}: {probability:.1f}%\n"
+            else:
+                add_autotrading_log("⚠️ No Polymarket data available", "warning")
+            
+            # Build positions context
+            positions_context = ""
+            if positions:
+                positions_context = "\n\nCURRENT POSITIONS:\n"
+                for pos in positions:
+                    symbol = pos.get('symbol', 'Unknown')
+                    qty = pos.get('qty', 0)
+                    unrealized_pl = pos.get('unrealized_pl', 0)
+                    positions_context += f"- {symbol}: {qty} units, P&L: ${unrealized_pl:.2f}\n"
+            
+            # Build comprehensive trading context
+            context = f"""═══════════════════════════════════════════════════════════
+🤖 AUTOMATED TRADING CYCLE #{iteration}
+═══════════════════════════════════════════════════════════
+
+ACCOUNT STATUS:
+- Broker: {broker.get_broker_name()}
+- Cash Available: ${cash:.2f}
+- Total Equity: ${equity:.2f}
+- Buying Power: ${buying_power:.2f}
+- Open Positions: {len(positions)}
+{positions_context}
+{polymarket_context}
+
+INSTRUCTIONS:
+You are an institutional-grade AI trading system. Follow the systematic workflow:
+
+1. READ TRADING MEMORY FIRST (use read_trading_memory tool)
+2. Review account status and existing positions
+3. Analyze Polymarket predictions for high-conviction signals (>65%)
+4. Check technical indicators for identified assets
+5. Evaluate market conditions and risk
+6. Make trading decisions based on confluence of signals
+7. Document all trades in memory with entry, rationale, and exit plan
+
+Focus on:
+- Quality over quantity (only high-conviction trades)
+- Risk management (position sizing, stops, diversification)
+- Following the complete decision matrix
+- Logging all tool usage and reasoning
+
+Begin your analysis now."""
+            
+            add_autotrading_log("🧠 Sending context to AI for analysis...", "info")
             
             # Call AI for trading decisions
             messages = [
-                {"role": "user", "content": "You are an automated trading system."},
                 {"role": "user", "content": context}
             ]
             
-            response = call_ai_with_tools(messages, max_turns=5)
+            response = call_ai_with_tools(messages, max_turns=10)
             
-            add_autotrading_log(f"AI Response: {response[:200]}...")
+            # Log AI response (full response, not truncated)
+            add_autotrading_log(f"💬 AI Decision:\n{response}", "ai_response")
+            
+            add_autotrading_log(f"═══ Cycle #{iteration} Complete ═══", "info")
             
             # Sleep before next iteration
-            interval = autotrading_config.get('interval', 60)
+            interval = autotrading_config.get('checkInterval', autotrading_config.get('interval', 300))
+            add_autotrading_log(f"⏳ Sleeping for {interval} seconds...", "info")
             time.sleep(interval)
             
         except Exception as e:
-            add_autotrading_log(f"Auto-trading error: {str(e)}", "error")
+            add_autotrading_log(f"❌ Auto-trading error: {str(e)}", "error")
+            logger.error(f"Auto-trading error: {e}", exc_info=True)
             time.sleep(60)
     
-    add_autotrading_log("Auto-trading loop ended")
+    add_autotrading_log("🛑 Auto-trading loop ended", "info")
 
 if __name__ == '__main__':
     print("🚀 Multi-Broker Trading Server Starting...")

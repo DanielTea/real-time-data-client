@@ -7,11 +7,11 @@ interface Message {
 }
 
 interface AccountInfo {
-    status: string;
-    cash: number;
-    portfolio_value: number;
-    buying_power: number;
-    equity: number;
+    status?: string;
+    cash?: number;
+    portfolio_value?: number;
+    buying_power?: number;
+    equity?: number;
 }
 
 export const TradingChat: React.FC = () => {
@@ -260,25 +260,25 @@ export const TradingChat: React.FC = () => {
                         <div>
                             <div className="text-gray-600 text-xs">Portfolio Value</div>
                             <div className="text-lg font-semibold text-gray-900">
-                                ${accountInfo.portfolio_value.toFixed(2)}
+                                ${(accountInfo.portfolio_value || accountInfo.equity || 0).toFixed(2)}
                             </div>
                         </div>
                         <div>
                             <div className="text-gray-600 text-xs">Cash</div>
                             <div className="text-lg font-semibold text-gray-900">
-                                ${accountInfo.cash.toFixed(2)}
+                                ${(accountInfo.cash || 0).toFixed(2)}
                             </div>
                         </div>
                         <div>
                             <div className="text-gray-600 text-xs">Buying Power</div>
                             <div className="text-lg font-semibold text-gray-900">
-                                ${accountInfo.buying_power.toFixed(2)}
+                                ${(accountInfo.buying_power || 0).toFixed(2)}
                             </div>
                         </div>
                         <div>
                             <div className="text-gray-600 text-xs">Status</div>
                             <div className="text-lg font-semibold text-green-600">
-                                {accountInfo.status.toUpperCase()}
+                                {(accountInfo.status || 'ACTIVE').toUpperCase()}
                             </div>
                         </div>
                     </div>

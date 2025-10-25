@@ -114,7 +114,7 @@ class AlpacaBroker(BaseBroker):
         return {
             'symbol': symbol,
             'price': float(bar.close),
-            'timestamp': bar.timestamp,
+            'timestamp': bar.timestamp.isoformat() if hasattr(bar.timestamp, 'isoformat') else str(bar.timestamp),
             'open': float(bar.open),
             'high': float(bar.high),
             'low': float(bar.low),
@@ -259,7 +259,7 @@ class AlpacaBroker(BaseBroker):
         result = []
         for bar in bars:
             result.append({
-                'timestamp': bar.timestamp,
+                'timestamp': bar.timestamp.isoformat() if hasattr(bar.timestamp, 'isoformat') else str(bar.timestamp),
                 'open': float(bar.open),
                 'high': float(bar.high),
                 'low': float(bar.low),
@@ -292,7 +292,7 @@ class AlpacaBroker(BaseBroker):
                 'status': str(order.status),
                 'filled_qty': float(order.filled_qty) if order.filled_qty else 0,
                 'filled_avg_price': float(order.filled_avg_price) if order.filled_avg_price else 0,
-                'created_at': order.created_at,
+                'created_at': order.created_at.isoformat() if hasattr(order.created_at, 'isoformat') else str(order.created_at),
             })
         
         return result

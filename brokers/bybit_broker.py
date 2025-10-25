@@ -190,7 +190,7 @@ class BybitBroker(BaseBroker):
         return {
             'symbol': symbol,
             'price': float(ticker.get('last_price', 0)),
-            'timestamp': datetime.fromtimestamp(int(ticker.get('time', 0)) / 1000),
+            'timestamp': datetime.fromtimestamp(int(ticker.get('time', 0)) / 1000).isoformat(),
             'open': float(ticker.get('open_value', 0)),
             'high': float(ticker.get('high_price_24h', 0)),
             'low': float(ticker.get('low_price_24h', 0)),
@@ -276,7 +276,7 @@ class BybitBroker(BaseBroker):
         bars = []
         for bar in result:
             bars.append({
-                'timestamp': datetime.fromtimestamp(int(bar.get('open_time', 0))),
+                'timestamp': datetime.fromtimestamp(int(bar.get('open_time', 0))).isoformat(),
                 'open': float(bar.get('open', 0)),
                 'high': float(bar.get('high', 0)),
                 'low': float(bar.get('low', 0)),
@@ -311,7 +311,7 @@ class BybitBroker(BaseBroker):
                 'status': order.get('order_status'),
                 'filled_qty': float(order.get('cum_exec_qty', 0)),
                 'filled_avg_price': float(order.get('price', 0)),
-                'created_at': datetime.fromtimestamp(int(order.get('created_time', 0)) / 1000),
+                'created_at': datetime.fromtimestamp(int(order.get('created_time', 0)) / 1000).isoformat(),
             })
         
         return orders
@@ -333,11 +333,12 @@ class BybitBroker(BaseBroker):
     
     def get_market_status(self) -> Dict[str, Any]:
         """Get market status - crypto markets are always open"""
+        now = datetime.now()
         return {
             'is_open': True,  # Crypto markets are 24/7
-            'next_open': datetime.now(),
-            'next_close': datetime.now() + timedelta(days=365),
-            'timestamp': datetime.now(),
+            'next_open': now.isoformat(),
+            'next_close': (now + timedelta(days=365)).isoformat(),
+            'timestamp': now.isoformat(),
         }
     
     # Bybit-specific capabilities
