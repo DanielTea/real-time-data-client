@@ -5,7 +5,8 @@ A real-time WebSocket client for monitoring Polymarket probability changes with 
 > 🚀 **New here?** See [USAGE.md](USAGE.md) for super simple getting started guide!  
 > 📚 **Quick reference?** See [QUICK-REFERENCE.md](QUICK-REFERENCE.md) for all commands and tips!  
 > 🔄 **Multi-broker trading?** See [QUICK-START-BROKERS.md](QUICK-START-BROKERS.md) for 5-minute setup!  
-> 📖 **Full broker guide?** See [BROKER-INTEGRATION.md](BROKER-INTEGRATION.md) for comprehensive documentation!
+> 📖 **Full broker guide?** See [BROKER-INTEGRATION.md](BROKER-INTEGRATION.md) for comprehensive documentation!  
+> 💎 **Trade with Binance?** See [BINANCE-QUICKSTART.md](BINANCE-QUICKSTART.md) for 125x leverage guide!
 
 ## Features
 
@@ -188,6 +189,16 @@ A real-time WebSocket client for monitoring Polymarket probability changes with 
 │   Polymarket    │───▶│  TypeScript      │───▶│   WebSocket     │
 │   WebSocket     │    │  Client          │    │   Server        │
 └─────────────────┘    └──────────────────┘    └─────────────────┘
+                                ↓
+┌─────────────────────────────────────────────────────────────────┐
+│  Multi-Broker Trading System (NEW!)                             │
+│  ┌───────────┐  ┌───────────┐  ┌───────────┐                   │
+│  │  Alpaca   │  │   Bybit   │  │  Binance  │                   │
+│  │ Stocks+   │  │  100x     │  │  125x     │                   │
+│  │ Crypto+   │  │ Leverage  │  │ Leverage  │                   │
+│  │ Options   │  │           │  │           │                   │
+│  └───────────┘  └───────────┘  └───────────┘                   │
+└─────────────────────────────────────────────────────────────────┘
                                                           │
                                                           ▼
 ┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
