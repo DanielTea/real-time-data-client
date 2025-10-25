@@ -321,7 +321,7 @@ This will:
 -   ✅ Check prerequisites (Node.js, Python, pnpm, uv)
 -   ✅ Install all dependencies (Node.js + Python)
 -   ✅ Start WebSocket server (port 8080)
--   ✅ Start Multi-Broker Trading server (port 5002)
+-   ✅ Start Trading server (port 5000)
 -   ✅ Start Frontend (port 5173)
 -   ✅ Open browser automatically
 
