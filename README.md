@@ -321,7 +321,7 @@ This will:
 -   ✅ Check prerequisites (Node.js, Python, pnpm, uv)
 -   ✅ Install all dependencies (Node.js + Python)
 -   ✅ Start WebSocket server (port 8080)
--   ✅ Start Trading server (port 5000)
+-   ✅ Start Multi-Broker Trading server (port 5002)
 -   ✅ Start Frontend (port 5173)
 -   ✅ Open browser automatically
 
@@ -341,14 +341,16 @@ If you prefer to start services individually:
 node websocket-server.js
 ```
 
-#### Terminal 2: (Optional) Start the Trading Server
+#### Terminal 2: (Optional) Start the Multi-Broker Trading Server
 
 ```bash
 source .venv/bin/activate
-python alpaca-trading-server.py
+python multi-broker-trading-server.py
+# Or use the startup script:
+# ./start-multi-broker-server.sh
 ```
 
-This enables the AI trading chat feature. Skip this if you only want Polymarket monitoring.
+This enables the AI trading chat feature with multi-broker support (Alpaca, Bybit, Binance). Skip this if you only want Polymarket monitoring.
 
 #### Terminal 3: Start the Frontend
 
@@ -417,14 +419,16 @@ The Trading Chat feature lets you execute cryptocurrency and stock trades using 
     - Enable **Paper Trading Mode** (recommended for testing)
     - Click **💾 Save API Keys**
 
-2. **Start the Trading Server**:
+2. **Start the Multi-Broker Trading Server**:
 
     ```bash
     source .venv/bin/activate
-    python alpaca-trading-server.py
+    python multi-broker-trading-server.py
+    # Or use the startup script:
+    # ./start-multi-broker-server.sh
     ```
 
-    The server will run on `http://localhost:5001`
+    The server will run on `http://localhost:5002`
 
 3. **Open Trading Chat**:
     - Click **💬 Trading Chat** in the sidebar
@@ -552,7 +556,9 @@ real-time-data-client/
 │   ├── TRADING.md             # 🆕 Trading feature documentation
 │   └── package.json
 ├── websocket-server.js         # Polymarket WebSocket bridge server
-├── alpaca-trading-server.py          # 🆕 Python trading server (Alpaca + Claude)
+├── multi-broker-trading-server.py   # 🆕 Multi-broker trading server (port 5002)
+├── alpaca-trading-server.py         # Legacy Alpaca-only server (port 5001)
+├── start-multi-broker-server.sh     # 🆕 Start multi-broker server script
 ├── requirements-trading.txt   # 🆕 Python dependencies for trading
 ├── logs/                      # 🆕 Service logs directory
 ├── view-logs.sh               # Log viewer helper script

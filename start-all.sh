@@ -139,7 +139,8 @@ echo ""
 # Clean up any existing processes
 echo -e "${BLUE}🧹 Cleaning up existing processes...${NC}"
 kill_port 8080  # WebSocket server
-kill_port 5001  # Trading server
+kill_port 5001  # Old Alpaca trading server
+kill_port 5002  # Multi-broker trading server
 kill_port 5173  # Frontend dev server
 
 echo ""
@@ -168,16 +169,16 @@ else
     exit 1
 fi
 
-# Start Trading Server (Optional)
-echo -e "${YELLOW}Starting Trading Server (port 5001)...${NC}"
+# Start Multi-Broker Trading Server (Optional)
+echo -e "${YELLOW}Starting Multi-Broker Trading Server (port 5002)...${NC}"
 source .venv/bin/activate
-python alpaca-trading-server.py > "$LOG_DIR/trading-$TIMESTAMP.log" 2>&1 &
+python multi-broker-trading-server.py > "$LOG_DIR/trading-$TIMESTAMP.log" 2>&1 &
 TRADING_PID=$!
 sleep 2
 
 if ps -p $TRADING_PID > /dev/null; then
-    echo -e "${GREEN}✓${NC} Trading Server running (PID: $TRADING_PID)"
-    echo -e "${BLUE}ℹ️  Configure API keys in Settings to use trading features${NC}"
+    echo -e "${GREEN}✓${NC} Multi-Broker Trading Server running (PID: $TRADING_PID)"
+    echo -e "${BLUE}ℹ️  Configure broker (Alpaca/Bybit/Binance) in Settings${NC}"
 else
     echo -e "${YELLOW}⚠️  Trading Server failed to start (optional)${NC}"
     TRADING_PID=""
@@ -211,7 +212,7 @@ echo ""
 echo -e "  📊 ${GREEN}Dashboard:${NC}           http://localhost:5173"
 echo -e "  🔌 ${GREEN}WebSocket Server:${NC}    ws://localhost:8080"
 if [ ! -z "$TRADING_PID" ]; then
-    echo -e "  💬 ${GREEN}Trading Server:${NC}      http://localhost:5001"
+    echo -e "  💬 ${GREEN}Trading Server:${NC}      http://localhost:5002"
 fi
 echo ""
 
