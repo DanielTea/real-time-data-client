@@ -11,6 +11,8 @@ const navItems: NavItem[] = [
     { path: "/", label: "Dashboard", icon: "📊" },
     { path: "/json", label: "JSON View", icon: "📄" },
     { path: "/analytics", label: "Analytics", icon: "📈" },
+    { path: "/trading", label: "Trading Chat", icon: "💬" },
+    { path: "/autotrading", label: "Auto-Trading", icon: "🤖" },
     { path: "/settings", label: "Settings", icon: "⚙️" },
     { path: "/about", label: "About", icon: "ℹ️" },
 ];

@@ -5,6 +5,8 @@ lib/
 node_modules/
 .nyc_output/
 coverage/
+logs/
+.venv/
 
 # files
 .env
@@ -16,6 +18,8 @@ yarn-error.log*
 .history/
 
 keys.env
+.running-services.pid
 
 package.json
 polymarket-logs.txt
+trading_memory.md
